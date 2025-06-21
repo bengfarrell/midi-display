@@ -2,5 +2,11 @@
   "name": "midi-display",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js"
+  "main": "src/index.js",
+  "dependencies": {
+    "gh-pages": "^6.3.0"
+  },
+  "scripts": {
+    "deploy": "gh-pages -d src"
+  }
 }
