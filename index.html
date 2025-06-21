@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIDI Display</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MIDI SysEx Device ID Reader</h1>
+            <p>Connect your MIDI device and read sysex messages to extract device IDs</p>
+        </header>
+
+        <main>
+            <section class="status-section">
+                <div class="status-indicator">
+                    <div id="midiStatus" class="status-light offline"></div>
+                    <span id="statusText">MIDI Access: Not Connected</span>
+                </div>
+                <button id="enableMidi" class="btn-primary">Enable MIDI Access</button>
+            </section>
+
+            <section class="device-section">
+                <h2>MIDI Input Devices</h2>
+                <div id="inputDevices" class="device-list">
+                    <p class="no-devices">No MIDI input devices found</p>
+                </div>
+            </section>
+
+            <section class="output-section">
+                <h2>MIDI Output Devices</h2>
+                <div id="outputDevices" class="device-list">
+                    <p class="no-devices">No MIDI output devices found</p>
+                </div>
+                <div class="identity-request-section">
+                    <h3>Identity Request</h3>
+                    <p class="section-description">Send an identity request to prompt devices to respond with their device ID</p>
+                    <div class="identity-controls">
+                        <select id="targetDeviceId" class="device-select">
+                            <option value="127">All Devices (0x7F)</option>
+                            <option value="0">Device ID 0 (0x00)</option>
+                            <option value="1">Device ID 1 (0x01)</option>
+                            <option value="2">Device ID 2 (0x02)</option>
+                            <option value="3">Device ID 3 (0x03)</option>
+                            <option value="4">Device ID 4 (0x04)</option>
+                            <option value="5">Device ID 5 (0x05)</option>
+                            <option value="6">Device ID 6 (0x06)</option>
+                            <option value="7">Device ID 7 (0x07)</option>
+                            <option value="8">Device ID 8 (0x08)</option>
+                            <option value="9">Device ID 9 (0x09)</option>
+                            <option value="10">Device ID 10 (0x0A)</option>
+                            <option value="11">Device ID 11 (0x0B)</option>
+                            <option value="12">Device ID 12 (0x0C)</option>
+                            <option value="13">Device ID 13 (0x0D)</option>
+                            <option value="14">Device ID 14 (0x0E)</option>
+                            <option value="15">Device ID 15 (0x0F)</option>
+                            <option value="16">Device ID 16 (0x10)</option>
+                        </select>
+                        <button id="sendIdentityRequest" class="btn-primary" disabled>Send Identity Request</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="midi-messages-section">
+                <h2>MIDI Messages</h2>
+                <div class="controls">
+                    <button id="clearMessages" class="btn-secondary">Clear Messages</button>
+                    <label class="toggle">
+                        <input type="checkbox" id="autoScroll" checked>
+                        <span>Auto-scroll</span>
+                    </label>
+                    <div class="message-filters">
+                        <label class="filter-toggle">
+                            <input type="checkbox" id="showSysEx" checked>
+                            <span>SysEx</span>
+                        </label>
+                        <label class="filter-toggle">
+                            <input type="checkbox" id="showNotes" checked>
+                            <span>Notes</span>
+                        </label>
+                        <label class="filter-toggle">
+                            <input type="checkbox" id="showCC" checked>
+                            <span>CC</span>
+                        </label>
+                        <label class="filter-toggle">
+                            <input type="checkbox" id="showPC" checked>
+                            <span>PC</span>
+                        </label>
+                        <label class="filter-toggle">
+                            <input type="checkbox" id="showOther" checked>
+                            <span>Other</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="midiMessages" class="message-container">
+                    <p class="no-messages">No MIDI messages received yet</p>
+                </div>
+            </section>
+
+            <section class="device-id-section">
+                <h2>Detected Device IDs</h2>
+                <div id="deviceIds" class="device-id-list">
+                    <p class="no-device-ids">No device IDs detected yet</p>
+                </div>
+            </section>
+
+            <section class="midi-mappings-section">
+                <h2>MIDI Controller Mappings</h2>
+                <div class="controls">
+                    <button id="clearMappings" class="btn-secondary">Clear Mappings</button>
+                    <button id="importMappings" class="btn-secondary">Import JSON</button>
+                    <button id="exportMappings" class="btn-secondary">Export JSON</button>
+                    <button id="exportMappingsCSV" class="btn-secondary">Export CSV</button>
+                </div>
+                <input type="file" id="importFileInput" accept=".json" style="display: none;">
+                <div id="midiMappings" class="mappings-container">
+                    <p class="no-mappings">No MIDI controllers labeled yet</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
