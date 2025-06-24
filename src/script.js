@@ -12,11 +12,17 @@ class MidiSysExReader {
             notes: true,
             cc: true,
             pc: true,
+            pressure: true,
+            pitchbend: true,
+            system: true,
             other: true
         };
         
         this.initializeElements();
         this.bindEvents();
+        
+        // Initialize query preview
+        this.updateQueryPreview();
     }
 
     initializeElements() {
@@ -29,12 +35,13 @@ class MidiSysExReader {
         this.deviceIdsContainer = document.getElementById('deviceIds');
         this.clearButton = document.getElementById('clearMessages');
         this.autoScrollCheckbox = document.getElementById('autoScroll');
-        this.targetDeviceIdSelect = document.getElementById('targetDeviceId');
-        this.sendIdentityRequestButton = document.getElementById('sendIdentityRequest');
         this.showSysExCheckbox = document.getElementById('showSysEx');
         this.showNotesCheckbox = document.getElementById('showNotes');
         this.showCCCheckbox = document.getElementById('showCC');
         this.showPCCheckbox = document.getElementById('showPC');
+        this.showPressureCheckbox = document.getElementById('showPressure');
+        this.showPitchBendCheckbox = document.getElementById('showPitchBend');
+        this.showSystemCheckbox = document.getElementById('showSystem');
         this.showOtherCheckbox = document.getElementById('showOther');
         this.midiMappingsContainer = document.getElementById('midiMappings');
         this.clearMappingsButton = document.getElementById('clearMappings');
@@ -42,6 +49,17 @@ class MidiSysExReader {
         this.exportMappingsButton = document.getElementById('exportMappings');
         this.exportMappingsCSVButton = document.getElementById('exportMappingsCSV');
         this.importFileInput = document.getElementById('importFileInput');
+        
+        // Universal Query Builder elements
+        this.universalQueryType = document.getElementById('universalQueryType');
+        this.universalTargetDeviceId = document.getElementById('universalTargetDeviceId');
+        this.queryPreview = document.getElementById('queryPreview');
+        this.sendUniversalQueryButton = document.getElementById('sendUniversalQuery');
+        this.customQuerySection = document.getElementById('customQuerySection');
+        this.customSysEx = document.getElementById('customSysEx');
+        this.validateCustomSysExButton = document.getElementById('validateCustomSysEx');
+        this.manufacturerTemplate = document.getElementById('manufacturerTemplate');
+        this.loadTemplateButton = document.getElementById('loadTemplate');
     }
 
     bindEvents() {
@@ -50,7 +68,6 @@ class MidiSysExReader {
         this.autoScrollCheckbox.addEventListener('change', (e) => {
             this.autoScroll = e.target.checked;
         });
-        this.sendIdentityRequestButton.addEventListener('click', () => this.sendIdentityRequest());
         
         // Filter checkboxes
         this.showSysExCheckbox.addEventListener('change', (e) => {
@@ -69,6 +86,18 @@ class MidiSysExReader {
             this.messageFilters.pc = e.target.checked;
             this.refreshMessageDisplay();
         });
+        this.showPressureCheckbox.addEventListener('change', (e) => {
+            this.messageFilters.pressure = e.target.checked;
+            this.refreshMessageDisplay();
+        });
+        this.showPitchBendCheckbox.addEventListener('change', (e) => {
+            this.messageFilters.pitchbend = e.target.checked;
+            this.refreshMessageDisplay();
+        });
+        this.showSystemCheckbox.addEventListener('change', (e) => {
+            this.messageFilters.system = e.target.checked;
+            this.refreshMessageDisplay();
+        });
         this.showOtherCheckbox.addEventListener('change', (e) => {
             this.messageFilters.other = e.target.checked;
             this.refreshMessageDisplay();
@@ -80,6 +109,14 @@ class MidiSysExReader {
         this.exportMappingsButton.addEventListener('click', () => this.exportMappings());
         this.exportMappingsCSVButton.addEventListener('click', () => this.exportMappingsCSV());
         this.importFileInput.addEventListener('change', (e) => this.handleFileImport(e));
+        
+        // Universal Query Builder events
+        this.universalQueryType.addEventListener('change', () => this.updateQueryPreview());
+        this.universalTargetDeviceId.addEventListener('change', () => this.updateQueryPreview());
+        this.sendUniversalQueryButton.addEventListener('click', () => this.sendUniversalQuery());
+        this.customSysEx.addEventListener('input', () => this.updateCustomQueryPreview());
+        this.validateCustomSysExButton.addEventListener('click', () => this.validateCustomSysEx());
+        this.loadTemplateButton.addEventListener('click', () => this.loadManufacturerTemplate());
     }
 
     async requestMidiAccess() {
@@ -130,7 +167,7 @@ class MidiSysExReader {
 
         if (this.midi.outputs.size === 0) {
             this.outputDevicesContainer.innerHTML = '<p class="no-devices">No MIDI output devices found</p>';
-            this.sendIdentityRequestButton.disabled = true;
+            this.sendUniversalQueryButton.disabled = true;
             return;
         }
 
@@ -141,8 +178,8 @@ class MidiSysExReader {
             this.outputDevicesContainer.appendChild(deviceElement);
         }
 
-        // Enable the identity request button if we have outputs
-        this.sendIdentityRequestButton.disabled = false;
+        // Enable the universal query button if we have outputs
+        this.sendUniversalQueryButton.disabled = false;
     }
 
     createDeviceElement(device) {
@@ -252,7 +289,7 @@ class MidiSysExReader {
             case 0xA0: // Polyphonic Key Pressure
                 return {
                     type: 'Poly Pressure',
-                    category: 'other',
+                    category: 'pressure',
                     description: `Poly Pressure: ${this.getMidiNoteName(data[1])} (${data[1]}) Pressure: ${data[2]}`,
                     channel: channel,
                     deviceId: null
@@ -276,7 +313,7 @@ class MidiSysExReader {
             case 0xD0: // Channel Pressure
                 return {
                     type: 'Channel Pressure',
-                    category: 'other',
+                    category: 'pressure',
                     description: `Channel Pressure: ${data[1]}`,
                     channel: channel,
                     deviceId: null
@@ -512,11 +549,41 @@ class MidiSysExReader {
         const dataDiv = document.createElement('div');
         dataDiv.className = 'message-data';
         
-        // Format the data with device ID highlighting for SysEx
-        const formattedData = message.category === 'sysex' ? 
+        // Create hex data section
+        const hexSection = document.createElement('div');
+        hexSection.className = 'data-section hex-data';
+        
+        const hexLabel = document.createElement('div');
+        hexLabel.className = 'data-label';
+        hexLabel.textContent = 'Raw Hex Bytes:';
+        
+        const hexValue = document.createElement('div');
+        hexValue.className = 'data-value hex-value';
+        const formattedHex = message.category === 'sysex' ? 
             this.formatSysExData(message.data, message.deviceId) :
             this.formatMidiData(message.data);
-        dataDiv.innerHTML = formattedData;
+        hexValue.innerHTML = formattedHex;
+        
+        hexSection.appendChild(hexLabel);
+        hexSection.appendChild(hexValue);
+        
+        // Create decimal data section  
+        const decimalSection = document.createElement('div');
+        decimalSection.className = 'data-section decimal-data';
+        
+        const decimalLabel = document.createElement('div');
+        decimalLabel.className = 'data-label';
+        decimalLabel.textContent = 'Decimal Values:';
+        
+        const decimalValue = document.createElement('div');
+        decimalValue.className = 'data-value decimal-value';
+        decimalValue.textContent = message.data.join(' ');
+        
+        decimalSection.appendChild(decimalLabel);
+        decimalSection.appendChild(decimalValue);
+        
+        dataDiv.appendChild(hexSection);
+        dataDiv.appendChild(decimalSection);
 
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'message-actions';
@@ -542,8 +609,9 @@ class MidiSysExReader {
             case 'note': return this.messageFilters.notes;
             case 'cc': return this.messageFilters.cc;
             case 'program': return this.messageFilters.pc;
-            case 'pitchbend': return this.messageFilters.other;
-            case 'system': return this.messageFilters.other;
+            case 'pressure': return this.messageFilters.pressure;
+            case 'pitchbend': return this.messageFilters.pitchbend;
+            case 'system': return this.messageFilters.system;
             default: return this.messageFilters.other;
         }
     }
@@ -703,47 +771,6 @@ class MidiSysExReader {
         this.deviceIds.clear();
         this.midiContainer.innerHTML = '<p class="no-messages">No MIDI messages received yet</p>';
         this.deviceIdsContainer.innerHTML = '<p class="no-device-ids">No device IDs detected yet</p>';
-    }
-
-    sendIdentityRequest() {
-        if (this.outputs.size === 0) {
-            alert('No MIDI output devices available');
-            return;
-        }
-
-        const targetDeviceId = parseInt(this.targetDeviceIdSelect.value);
-        
-        // MIDI Identity Request: F0 7E [device ID] 06 01 F7
-        const identityRequest = [0xF0, 0x7E, targetDeviceId, 0x06, 0x01, 0xF7];
-
-        let messagesSent = 0;
-        
-        // Send the identity request to all available output devices
-        for (const output of this.outputs.values()) {
-            if (output.state === 'connected') {
-                try {
-                    output.send(identityRequest);
-                    messagesSent++;
-                    console.log(`Sent identity request to ${output.name}:`, identityRequest.map(b => '0x' + b.toString(16).toUpperCase().padStart(2, '0')).join(' '));
-                } catch (error) {
-                    console.error(`Failed to send identity request to ${output.name}:`, error);
-                }
-            }
-        }
-
-        if (messagesSent > 0) {
-            // Show a temporary status message
-            const originalText = this.sendIdentityRequestButton.textContent;
-            this.sendIdentityRequestButton.textContent = `Sent to ${messagesSent} device${messagesSent !== 1 ? 's' : ''}`;
-            this.sendIdentityRequestButton.disabled = true;
-            
-            setTimeout(() => {
-                this.sendIdentityRequestButton.textContent = originalText;
-                this.sendIdentityRequestButton.disabled = false;
-            }, 2000);
-        } else {
-            alert('No connected output devices found');
-        }
     }
 
     getDeviceIdReadableInfo(deviceId) {
@@ -1481,6 +1508,243 @@ class MidiSysExReader {
         }
 
         return `Family: ${deviceFamily}, Member: ${deviceFamilyMember}`;
+    }
+    
+    // Universal Query Builder Methods
+    updateQueryPreview() {
+        const queryType = this.universalQueryType.value;
+        const deviceId = parseInt(this.universalTargetDeviceId.value);
+        
+        if (queryType === 'custom') {
+            this.customQuerySection.style.display = 'block';
+            this.updateCustomQueryPreview();
+            return;
+        } else {
+            this.customQuerySection.style.display = 'none';
+        }
+        
+        const query = this.buildUniversalQuery(queryType, deviceId);
+        if (query) {
+            this.queryPreview.value = query.bytes.map(b => '0x' + b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
+            this.sendUniversalQueryButton.disabled = false;
+            this.sendUniversalQueryButton.textContent = `Send ${query.name}`;
+        } else {
+            this.queryPreview.value = 'Invalid query type';
+            this.sendUniversalQueryButton.disabled = true;
+        }
+    }
+    
+    updateCustomQueryPreview() {
+        const customInput = this.customSysEx.value.trim();
+        if (customInput) {
+            const validation = this.validateSysExString(customInput);
+            if (validation.valid) {
+                this.queryPreview.value = validation.formatted;
+                this.sendUniversalQueryButton.disabled = false;
+                this.sendUniversalQueryButton.textContent = 'Send Custom SysEx';
+            } else {
+                this.queryPreview.value = `Error: ${validation.error}`;
+                this.sendUniversalQueryButton.disabled = true;
+            }
+        } else {
+            this.queryPreview.value = '';
+            this.sendUniversalQueryButton.disabled = true;
+        }
+    }
+    
+    buildUniversalQuery(queryType, deviceId) {
+        const queries = {
+            identity: {
+                name: 'Identity Request',
+                bytes: [0xF0, 0x7E, deviceId, 0x06, 0x01, 0xF7],
+                description: 'Requests device to respond with identity information'
+            },
+            masterVolume: {
+                name: 'Master Volume Query',
+                bytes: [0xF0, 0x7F, deviceId, 0x04, 0x01, 0x7F, 0xF7],
+                description: 'Queries current master volume level'
+            },
+            masterBalance: {
+                name: 'Master Balance Query',
+                bytes: [0xF0, 0x7F, deviceId, 0x04, 0x02, 0x40, 0xF7],
+                description: 'Queries current master balance setting'
+            },
+            fineTuning: {
+                name: 'Fine Tuning Query',
+                bytes: [0xF0, 0x7E, deviceId, 0x08, 0x02, 0x7F, 0x7F, 0xF7],
+                description: 'Queries current fine tuning setting'
+            },
+            coarseTuning: {
+                name: 'Coarse Tuning Query',
+                bytes: [0xF0, 0x7E, deviceId, 0x08, 0x03, 0x40, 0xF7],
+                description: 'Queries current coarse tuning setting'
+            },
+            sampleDump: {
+                name: 'Sample Dump Header Request',
+                bytes: [0xF0, 0x7E, deviceId, 0x01, 0x01, 0xF7],
+                description: 'Requests sample dump header information'
+            },
+            fileDump: {
+                name: 'File Dump Request',
+                bytes: [0xF0, 0x7E, deviceId, 0x07, 0x01, 0xF7],
+                description: 'Requests file dump information'
+            }
+        };
+        
+        return queries[queryType];
+    }
+    
+    validateSysExString(sysexString) {
+        try {
+            // Clean the input string
+            const cleaned = sysexString.replace(/[^0-9A-Fa-f\s]/g, '');
+            const parts = cleaned.split(/\s+/).filter(part => part.length > 0);
+            
+            if (parts.length === 0) {
+                return { valid: false, error: 'No hex values found' };
+            }
+            
+            const bytes = [];
+            for (const part of parts) {
+                if (part.length > 2) {
+                    return { valid: false, error: `Invalid hex value: ${part} (too long)` };
+                }
+                
+                const byte = parseInt(part, 16);
+                if (isNaN(byte) || byte < 0 || byte > 255) {
+                    return { valid: false, error: `Invalid hex value: ${part}` };
+                }
+                bytes.push(byte);
+            }
+            
+            // Basic SysEx validation
+            if (bytes[0] !== 0xF0) {
+                return { valid: false, error: 'SysEx must start with F0' };
+            }
+            
+            if (bytes[bytes.length - 1] !== 0xF7) {
+                return { valid: false, error: 'SysEx must end with F7' };
+            }
+            
+            if (bytes.length < 3) {
+                return { valid: false, error: 'SysEx too short (minimum 3 bytes)' };
+            }
+            
+            return {
+                valid: true,
+                bytes: bytes,
+                formatted: bytes.map(b => '0x' + b.toString(16).toUpperCase().padStart(2, '0')).join(' ')
+            };
+            
+        } catch (error) {
+            return { valid: false, error: error.message };
+        }
+    }
+    
+    validateCustomSysEx() {
+        const validation = this.validateSysExString(this.customSysEx.value);
+        if (validation.valid) {
+            alert(`✅ Valid SysEx!\n\nBytes: ${validation.bytes.length}\nFormatted: ${validation.formatted}`);
+        } else {
+            alert(`❌ Invalid SysEx!\n\nError: ${validation.error}`);
+        }
+    }
+    
+    sendUniversalQuery() {
+        if (this.outputs.size === 0) {
+            alert('No MIDI output devices available');
+            return;
+        }
+        
+        let queryBytes;
+        let queryName;
+        
+        if (this.universalQueryType.value === 'custom') {
+            const validation = this.validateSysExString(this.customSysEx.value);
+            if (!validation.valid) {
+                alert(`Cannot send query: ${validation.error}`);
+                return;
+            }
+            queryBytes = validation.bytes;
+            queryName = 'Custom SysEx';
+        } else {
+            const query = this.buildUniversalQuery(
+                this.universalQueryType.value, 
+                parseInt(this.universalTargetDeviceId.value)
+            );
+            if (!query) {
+                alert('Invalid query configuration');
+                return;
+            }
+            queryBytes = query.bytes;
+            queryName = query.name;
+        }
+        
+        let messagesSent = 0;
+        
+        // Send the query to all available output devices
+        for (const output of this.outputs.values()) {
+            if (output.state === 'connected') {
+                try {
+                    output.send(queryBytes);
+                    messagesSent++;
+                    console.log(`Sent ${queryName} to ${output.name}:`, queryBytes.map(b => '0x' + b.toString(16).toUpperCase().padStart(2, '0')).join(' '));
+                } catch (error) {
+                    console.error(`Failed to send ${queryName} to ${output.name}:`, error);
+                }
+            }
+        }
+        
+        if (messagesSent > 0) {
+            // Show a temporary status message
+            const originalText = this.sendUniversalQueryButton.textContent;
+            this.sendUniversalQueryButton.textContent = `Sent to ${messagesSent} device${messagesSent !== 1 ? 's' : ''}`;
+            this.sendUniversalQueryButton.disabled = true;
+            
+            setTimeout(() => {
+                this.sendUniversalQueryButton.textContent = originalText;
+                this.sendUniversalQueryButton.disabled = false;
+            }, 2000);
+        } else {
+            alert('No connected output devices found');
+        }
+    }
+    
+    loadManufacturerTemplate() {
+        const template = this.manufacturerTemplate.value;
+        
+        const templates = {
+            akai: {
+                name: 'Akai MPC - Program Dump Request',
+                sysex: 'F0 47 XX 40 00 01 F7',
+                description: 'Replace XX with device ID. Requests program dump from Akai MPC devices.'
+            },
+            roland: {
+                name: 'Roland - Data Request',
+                sysex: 'F0 41 XX 42 11 XX XX XX XX XX F7',
+                description: 'Replace first XX with device ID. Roland MT-32 compatible data request.'
+            },
+            yamaha: {
+                name: 'Yamaha - Parameter Request',
+                sysex: 'F0 43 XX 7E 00 F7',
+                description: 'Replace XX with channel (0x10-0x1F). Requests parameter data.'
+            },
+            korg: {
+                name: 'Korg - Program Request',
+                sysex: 'F0 42 XX 30 10 F7',
+                description: 'Replace XX with device ID. Requests current program data.'
+            }
+        };
+        
+        const selectedTemplate = templates[template];
+        if (selectedTemplate) {
+            this.customSysEx.value = selectedTemplate.sysex;
+            this.updateCustomQueryPreview();
+            
+            // Show template information
+            const info = `Loaded: ${selectedTemplate.name}\n\n${selectedTemplate.description}`;
+            alert(info);
+        }
     }
 }
 

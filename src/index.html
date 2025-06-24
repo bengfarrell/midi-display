@@ -34,31 +34,81 @@
                 <div id="outputDevices" class="device-list">
                     <p class="no-devices">No MIDI output devices found</p>
                 </div>
-                <div class="identity-request-section">
-                    <h3>Identity Request</h3>
-                    <p class="section-description">Send an identity request to prompt devices to respond with their device ID</p>
-                    <div class="identity-controls">
-                        <select id="targetDeviceId" class="device-select">
-                            <option value="127">All Devices (0x7F)</option>
-                            <option value="0">Device ID 0 (0x00)</option>
-                            <option value="1">Device ID 1 (0x01)</option>
-                            <option value="2">Device ID 2 (0x02)</option>
-                            <option value="3">Device ID 3 (0x03)</option>
-                            <option value="4">Device ID 4 (0x04)</option>
-                            <option value="5">Device ID 5 (0x05)</option>
-                            <option value="6">Device ID 6 (0x06)</option>
-                            <option value="7">Device ID 7 (0x07)</option>
-                            <option value="8">Device ID 8 (0x08)</option>
-                            <option value="9">Device ID 9 (0x09)</option>
-                            <option value="10">Device ID 10 (0x0A)</option>
-                            <option value="11">Device ID 11 (0x0B)</option>
-                            <option value="12">Device ID 12 (0x0C)</option>
-                            <option value="13">Device ID 13 (0x0D)</option>
-                            <option value="14">Device ID 14 (0x0E)</option>
-                            <option value="15">Device ID 15 (0x0F)</option>
-                            <option value="16">Device ID 16 (0x10)</option>
-                        </select>
-                        <button id="sendIdentityRequest" class="btn-primary" disabled>Send Identity Request</button>
+
+                
+                <div class="universal-query-section">
+                    <h3>Universal Query Builder</h3>
+                    <p class="section-description">Send standard MIDI queries that work on most devices</p>
+                    <div class="query-controls">
+                        <div class="query-row">
+                            <select id="universalQueryType" class="query-select">
+                                <option value="identity">Identity Request</option>
+                                <option value="masterVolume">Master Volume Query</option>
+                                <option value="masterBalance">Master Balance Query</option>
+                                <option value="fineTuning">Fine Tuning Query</option>
+                                <option value="coarseTuning">Coarse Tuning Query</option>
+                                <option value="sampleDump">Sample Dump Header Request</option>
+                                <option value="fileDump">File Dump Request</option>
+                                <option value="custom">Custom SysEx Builder</option>
+                            </select>
+                            <select id="universalTargetDeviceId" class="device-select">
+                                <option value="127">All Devices (0x7F)</option>
+                                <option value="0">Device ID 0 (0x00)</option>
+                                <option value="1">Device ID 1 (0x01)</option>
+                                <option value="2">Device ID 2 (0x02)</option>
+                                <option value="3">Device ID 3 (0x03)</option>
+                                <option value="4">Device ID 4 (0x04)</option>
+                                <option value="5">Device ID 5 (0x05)</option>
+                                <option value="6">Device ID 6 (0x06)</option>
+                                <option value="7">Device ID 7 (0x07)</option>
+                                <option value="8">Device ID 8 (0x08)</option>
+                                <option value="9">Device ID 9 (0x09)</option>
+                                <option value="10">Device ID 10 (0x0A)</option>
+                                <option value="11">Device ID 11 (0x0B)</option>
+                                <option value="12">Device ID 12 (0x0C)</option>
+                                <option value="13">Device ID 13 (0x0D)</option>
+                                <option value="14">Device ID 14 (0x0E)</option>
+                                <option value="15">Device ID 15 (0x0F)</option>
+                                <option value="16">Device ID 16 (0x10)</option>
+                            </select>
+                        </div>
+                        <div class="query-row">
+                            <input type="text" id="queryPreview" class="query-preview" placeholder="Query preview will appear here..." readonly>
+                            <button id="sendUniversalQuery" class="btn-primary" disabled>Send Query</button>
+                        </div>
+                        <div class="custom-query-section" id="customQuerySection" style="display: none;">
+                            <h4>Custom SysEx Builder</h4>
+                            <div class="custom-query-controls">
+                                <input type="text" id="customSysEx" class="custom-sysex-input" placeholder="Enter hex bytes (e.g., F0 43 12 00 41 30 00 F7)" />
+                                <button id="validateCustomSysEx" class="btn-secondary">Validate</button>
+                            </div>
+                            <div class="manufacturer-templates">
+                                <h5>Device-Specific Templates</h5>
+                                <select id="manufacturerTemplate" class="template-select">
+                                    <option value="">Select a manufacturer template...</option>
+                                    <option value="akai">Akai MPC - Program Dump Request</option>
+                                    <option value="roland">Roland - Data Request</option>
+                                    <option value="yamaha">Yamaha - Parameter Request</option>
+                                    <option value="korg">Korg - Program Request</option>
+                                </select>
+                                <button id="loadTemplate" class="btn-secondary">Load Template</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="query-info-section">
+                    <div class="query-info">
+                        <h6>About Universal MIDI Queries</h6>
+                        <p><strong>Universal queries</strong> work across most MIDI devices but have limitations:</p>
+                        <ul style="margin: 8px 0; padding-left: 20px;">
+                            <li><strong>Identity Request:</strong> Nearly all modern devices support this</li>
+                            <li><strong>Master Volume/Balance:</strong> Supported by most synthesizers and sound modules</li>
+                            <li><strong>Tuning Queries:</strong> Supported by devices with tuning capabilities</li>
+                            <li><strong>Sample/File Dump:</strong> Only supported by samplers and devices with storage</li>
+                        </ul>
+                        <p><strong>Device-specific queries</strong> (like current bank/program) usually require manufacturer-specific SysEx commands. Use the Custom SysEx Builder with manufacturer templates for these.</p>
+                        <p><strong>Note:</strong> Some devices may not respond to queries, or may respond with different data formats. Check your device manual for specific query support.</p>
                     </div>
                 </div>
             </section>
@@ -87,6 +137,18 @@
                         <label class="filter-toggle">
                             <input type="checkbox" id="showPC" checked>
                             <span>PC</span>
+                        </label>
+                        <label class="filter-toggle">
+                            <input type="checkbox" id="showPressure" checked>
+                            <span>Pressure</span>
+                        </label>
+                        <label class="filter-toggle">
+                            <input type="checkbox" id="showPitchBend" checked>
+                            <span>Pitch Bend</span>
+                        </label>
+                        <label class="filter-toggle">
+                            <input type="checkbox" id="showSystem" checked>
+                            <span>System</span>
                         </label>
                         <label class="filter-toggle">
                             <input type="checkbox" id="showOther" checked>
